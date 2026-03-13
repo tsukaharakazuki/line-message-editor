@@ -1,9 +1,11 @@
-import { useState, useMemo } from 'react'
-import type { FlexMessage, FlexContainer } from '../../types/line'
+import { useState, useMemo, useCallback } from 'react'
+import type { FlexMessage, FlexContainer, FlexBubble, FlexComponent, FlexBox } from '../../types/line'
 import { FLEX_TEMPLATES, FLEX_TEMPLATE_CATEGORIES } from '../../data/flexTemplates'
 import type { FlexTemplate } from '../../data/flexTemplates'
 import BubbleSettingsPanel from './BubbleSettingsPanel'
 import FlexRenderer from '../preview/FlexRenderer'
+import ComponentTree from './flex/ComponentTree'
+import PropertyPanel from './flex/PropertyPanel'
 import Editor from '@monaco-editor/react'
 
 interface Props {
@@ -57,6 +59,45 @@ function setAtPath(obj: unknown, path: string, value: string): unknown {
     }
   }
   return clone
+}
+
+// Navigate into a bubble using a dot-separated path string
+function getComponentAtPath(bubble: FlexBubble, path: string): FlexComponent | null {
+  const parts = path.split('.')
+  let current: unknown = bubble
+  for (const part of parts) {
+    if (current == null || typeof current !== 'object') return null
+    current = (current as Record<string, unknown>)[part]
+  }
+  return (current as FlexComponent) || null
+}
+
+// Immutably update a component at a given path within a bubble
+function updateComponentAtPath(bubble: FlexBubble, path: string, updater: (c: FlexComponent) => FlexComponent): FlexBubble {
+  const clone: FlexBubble = JSON.parse(JSON.stringify(bubble))
+  const parts = path.split('.')
+  let current: unknown = clone
+  for (let i = 0; i < parts.length - 1; i++) {
+    current = (current as Record<string, unknown>)[parts[i]]
+  }
+  const lastKey = parts[parts.length - 1]
+  const target = (current as Record<string, unknown>)[lastKey] as FlexComponent
+  ;(current as Record<string, unknown>)[lastKey] = updater(target)
+  return clone
+}
+
+// Create a default component of a given type
+function createDefaultComponent(type: FlexComponent['type']): FlexComponent {
+  switch (type) {
+    case 'box': return { type: 'box', layout: 'vertical', contents: [] }
+    case 'text': return { type: 'text', text: 'Text' }
+    case 'image': return { type: 'image', url: 'https://via.placeholder.com/300x200' }
+    case 'button': return { type: 'button', action: { type: 'uri', label: 'Button', uri: 'https://example.com' }, style: 'primary' }
+    case 'icon': return { type: 'icon', url: 'https://via.placeholder.com/20' }
+    case 'separator': return { type: 'separator' }
+    case 'filler': return { type: 'filler' }
+    case 'span': return { type: 'span', text: 'span' }
+  }
 }
 
 function TemplatePicker({ onSelect }: { onSelect: (contents: FlexContainer) => void }) {
@@ -116,8 +157,17 @@ function TemplateCard({ template, onSelect }: { template: FlexTemplate; onSelect
 export default function FlexEditor({ message, onChange }: Props) {
   const [editorValue, setEditorValue] = useState(() => JSON.stringify(message.contents, null, 2))
   const [showPicker, setShowPicker] = useState(false)
+  const [editorMode, setEditorMode] = useState<'gui' | 'json'>('gui')
+  const [selectedPath, setSelectedPath] = useState<string | null>(null)
 
   const imageEntries = useMemo(() => findImageUrls(message.contents), [message.contents])
+
+  const bubble = message.contents.type === 'bubble' ? message.contents as FlexBubble : null
+
+  const updateContents = useCallback((contents: FlexContainer) => {
+    onChange({ ...message, contents })
+    setEditorValue(JSON.stringify(contents, null, 2))
+  }, [message, onChange])
 
   const handleEditorChange = (value: string | undefined) => {
     if (!value) return
@@ -134,6 +184,7 @@ export default function FlexEditor({ message, onChange }: Props) {
     onChange({ ...message, contents })
     setEditorValue(JSON.stringify(contents, null, 2))
     setShowPicker(false)
+    setSelectedPath(null)
   }
 
   const updateImageUrl = (path: string, newUrl: string) => {
@@ -146,6 +197,78 @@ export default function FlexEditor({ message, onChange }: Props) {
     onChange({ ...message, contents })
     setEditorValue(JSON.stringify(contents, null, 2))
   }
+
+  // GUI editor handlers
+  const handleComponentChange = useCallback((component: FlexComponent) => {
+    if (!bubble || !selectedPath) return
+    const updated = updateComponentAtPath(bubble, selectedPath, () => component)
+    updateContents(updated)
+  }, [bubble, selectedPath, updateContents])
+
+  const handleAdd = useCallback((parentPath: string, type: FlexComponent['type']) => {
+    if (!bubble) return
+    const newComponent = createDefaultComponent(type)
+    const clone: FlexBubble = JSON.parse(JSON.stringify(bubble))
+
+    // Navigate to the parent box
+    const parts = parentPath.split('.')
+    let current: unknown = clone
+    for (const part of parts) {
+      current = (current as Record<string, unknown>)[part]
+    }
+    const box = current as FlexBox
+    if (box && Array.isArray(box.contents)) {
+      box.contents.push(newComponent)
+      updateContents(clone)
+      setSelectedPath(`${parentPath}.contents.${box.contents.length - 1}`)
+    }
+  }, [bubble, updateContents])
+
+  const handleRemove = useCallback((path: string) => {
+    if (!bubble) return
+    const clone: FlexBubble = JSON.parse(JSON.stringify(bubble))
+    const parts = path.split('.')
+    const index = Number(parts.pop()!)
+    const arrayKey = parts.pop()! // 'contents'
+
+    let current: unknown = clone
+    for (const part of parts) {
+      current = (current as Record<string, unknown>)[part]
+    }
+    const arr = (current as Record<string, unknown>)[arrayKey] as FlexComponent[]
+    if (Array.isArray(arr)) {
+      arr.splice(index, 1)
+      updateContents(clone)
+      if (selectedPath === path) setSelectedPath(null)
+    }
+  }, [bubble, selectedPath, updateContents])
+
+  const handleMove = useCallback((path: string, direction: 'up' | 'down') => {
+    if (!bubble) return
+    const clone: FlexBubble = JSON.parse(JSON.stringify(bubble))
+    const parts = path.split('.')
+    const index = Number(parts.pop()!)
+    const arrayKey = parts.pop()! // 'contents'
+
+    let current: unknown = clone
+    for (const part of parts) {
+      current = (current as Record<string, unknown>)[part]
+    }
+    const arr = (current as Record<string, unknown>)[arrayKey] as FlexComponent[]
+    if (!Array.isArray(arr)) return
+
+    const swapIdx = direction === 'up' ? index - 1 : index + 1
+    if (swapIdx < 0 || swapIdx >= arr.length) return
+
+    ;[arr[index], arr[swapIdx]] = [arr[swapIdx], arr[index]]
+    updateContents(clone)
+
+    const parentPath = parts.join('.')
+    const newPath = `${parentPath ? parentPath + '.' : ''}${arrayKey}.${swapIdx}`
+    setSelectedPath(newPath)
+  }, [bubble, updateContents])
+
+  const selectedComponent = bubble && selectedPath ? getComponentAtPath(bubble, selectedPath) : null
 
   return (
     <div className="space-y-4">
@@ -208,6 +331,90 @@ export default function FlexEditor({ message, onChange }: Props) {
         onChange={handleBubbleSettingsChange}
       />
 
+      {/* Editor Mode Tabs */}
+      <div>
+        <div className="flex border-b border-gray-200 mb-0">
+          {(['gui', 'json'] as const).map(mode => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => {
+                if (mode === 'json') {
+                  setEditorValue(JSON.stringify(message.contents, null, 2))
+                }
+                setEditorMode(mode)
+              }}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                editorMode === mode
+                  ? 'border-[#06C755] text-[#06C755]'
+                  : 'border-transparent text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              {mode === 'gui' ? 'GUI Editor' : 'JSON'}
+            </button>
+          ))}
+        </div>
+
+        {/* GUI Mode */}
+        {editorMode === 'gui' && bubble && (
+          <div className="flex border border-gray-200 rounded-b-lg overflow-hidden" style={{ minHeight: '400px' }}>
+            {/* Tree panel */}
+            <div className="w-[200px] border-r border-gray-200 overflow-y-auto bg-white flex-shrink-0">
+              <ComponentTree
+                bubble={bubble}
+                selectedPath={selectedPath}
+                onSelect={setSelectedPath}
+                onAdd={handleAdd}
+                onRemove={handleRemove}
+                onMove={handleMove}
+              />
+            </div>
+            {/* Property panel */}
+            <div className="flex-1 overflow-y-auto p-3 bg-gray-50">
+              {selectedComponent ? (
+                <PropertyPanel
+                  component={selectedComponent}
+                  onChange={handleComponentChange}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-sm text-gray-400">Select a component from the tree</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {editorMode === 'gui' && !bubble && (
+          <div className="border border-gray-200 rounded-b-lg p-4 text-center text-sm text-gray-400">
+            GUI editor is only available for bubble type. Switch to a bubble template or use JSON mode.
+          </div>
+        )}
+
+        {/* JSON Mode */}
+        {editorMode === 'json' && (
+          <div className="border border-gray-200 rounded-b-lg overflow-hidden" style={{ height: '400px' }}>
+            <Editor
+              height="100%"
+              language="json"
+              theme="vs-dark"
+              value={editorValue}
+              onChange={handleEditorChange}
+              options={{
+                minimap: { enabled: false },
+                fontSize: 13,
+                lineNumbers: 'on',
+                scrollBeyondLastLine: false,
+                wordWrap: 'on',
+                formatOnPaste: true,
+                automaticLayout: true,
+                tabSize: 2,
+              }}
+            />
+          </div>
+        )}
+      </div>
+
       {/* Image URL quick editor */}
       {imageEntries.length > 0 && (
         <div>
@@ -237,30 +444,6 @@ export default function FlexEditor({ message, onChange }: Props) {
           </div>
         </div>
       )}
-
-      {/* Monaco JSON Editor */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Flex Contents (JSON)</label>
-        <div className="border border-gray-300 rounded-lg overflow-hidden" style={{ height: '400px' }}>
-          <Editor
-            height="100%"
-            language="json"
-            theme="vs-dark"
-            value={editorValue}
-            onChange={handleEditorChange}
-            options={{
-              minimap: { enabled: false },
-              fontSize: 13,
-              lineNumbers: 'on',
-              scrollBeyondLastLine: false,
-              wordWrap: 'on',
-              formatOnPaste: true,
-              automaticLayout: true,
-              tabSize: 2,
-            }}
-          />
-        </div>
-      </div>
     </div>
   )
 }
