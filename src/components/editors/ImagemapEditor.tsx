@@ -242,7 +242,7 @@ export default function ImagemapEditor({ message, onChange }: Props) {
         <div
           ref={canvasRef}
           className="relative w-full bg-gray-100 border-2 border-gray-300 rounded-lg cursor-crosshair select-none overflow-hidden"
-          style={{ aspectRatio: `${message.baseSize.width} / ${message.baseSize.height}`, maxHeight: '250px' }}
+          style={{ aspectRatio: `${message.baseSize.width} / ${message.baseSize.height}`, maxHeight: '250px', maxWidth: '250px' }}
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
         >
