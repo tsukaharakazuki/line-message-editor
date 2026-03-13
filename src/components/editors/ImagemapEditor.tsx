@@ -169,7 +169,7 @@ export default function ImagemapEditor({ message, onChange }: Props) {
         <input
           className="w-full border border-blue-300 rounded px-2 py-1.5 text-sm bg-white"
           value={imageUrl}
-          onChange={(e) => { setImageUrl(e.target.value); setImageError(false) }}
+          onChange={(e) => { setImageUrl(e.target.value); setImageError(false); onChange({ ...message, baseUrl: e.target.value }) }}
           placeholder="https://example.com/image.png"
         />
         {imageError && <p className="text-xs text-red-500 mt-1">Failed to load image.</p>}

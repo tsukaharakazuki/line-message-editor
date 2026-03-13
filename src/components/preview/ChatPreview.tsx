@@ -142,7 +142,7 @@ function MessageContent({ message }: { message: LineMessage }) {
         <div className="rounded-2xl rounded-bl-sm overflow-hidden shadow-sm max-w-[240px]">
           <div className="relative bg-gray-200" style={{ aspectRatio: `${message.baseSize.width} / ${message.baseSize.height}` }}>
             <SafeImage
-              src={`${message.baseUrl}/1040`}
+              src={/\.\w{3,4}$/.test(message.baseUrl) ? message.baseUrl : `${message.baseUrl}/1040`}
               alt={message.altText}
               className="w-full h-full object-cover"
               fallback={null}
