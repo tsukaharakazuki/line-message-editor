@@ -313,6 +313,8 @@ export interface FlexText {
   wrap?: boolean
   weight?: 'regular' | 'bold'
   color?: string
+  decoration?: 'none' | 'underline' | 'line-through'
+  maxLines?: number
   action?: Action
   contents?: FlexSpan[]
 }

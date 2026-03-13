@@ -1,6 +1,14 @@
 import { useState } from 'react'
 import type { FlexContainer, FlexBubble, FlexComponent, FlexBox, FlexText, FlexImage, FlexButton, FlexIcon, FlexSeparator } from '../../types/line'
 
+const BUBBLE_SIZE_MAP: Record<string, string> = {
+  nano: '120px',
+  micro: '150px',
+  kilo: '230px',
+  mega: '300px',
+  giga: '340px',
+}
+
 function renderComponent(component: FlexComponent, key: string | number): React.ReactNode {
   switch (component.type) {
     case 'box':
@@ -18,7 +26,18 @@ function renderComponent(component: FlexComponent, key: string | number): React.
     case 'filler':
       return <div key={key} style={{ flex: component.flex ?? 1 }} />
     case 'span':
-      return <span key={key} style={{ fontSize: component.size, color: component.color, fontWeight: component.weight }}>{component.text}</span>
+      return (
+        <span key={key} style={{
+          fontSize: component.size ? sizeToPixels(component.size) : undefined,
+          color: component.color,
+          fontWeight: component.weight === 'bold' ? 700 : undefined,
+          fontStyle: component.style === 'italic' ? 'italic' : undefined,
+          textDecoration: component.decoration === 'line-through' ? 'line-through'
+            : component.decoration === 'underline' ? 'underline' : undefined,
+        }}>
+          {component.text}
+        </span>
+      )
     default:
       return null
   }
@@ -79,6 +98,17 @@ function FlexTextRenderer({ text }: { text: FlexText }) {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     lineHeight: 1.4,
+    textDecoration: text.decoration === 'line-through' ? 'line-through'
+      : text.decoration === 'underline' ? 'underline' : undefined,
+    alignSelf: text.gravity === 'bottom' ? 'flex-end'
+      : text.gravity === 'center' ? 'center'
+      : text.gravity === 'top' ? 'flex-start' : undefined,
+    ...(text.maxLines ? {
+      display: '-webkit-box',
+      WebkitLineClamp: text.maxLines,
+      WebkitBoxOrient: 'vertical' as const,
+      overflow: 'hidden',
+    } : {}),
   }
   if (text.contents && text.contents.length > 0) {
     return (
@@ -166,18 +196,35 @@ function FlexSeparatorRenderer({ separator }: { separator: FlexSeparator }) {
 }
 
 function BubbleRenderer({ bubble }: { bubble: FlexBubble }) {
+  const maxWidth = BUBBLE_SIZE_MAP[bubble.size || 'mega'] || '300px'
   return (
-    <div className="bg-white rounded-xl overflow-hidden shadow-sm" style={{ maxWidth: '300px', width: '100%' }}>
+    <div
+      className="bg-white rounded-xl overflow-hidden shadow-sm"
+      style={{ maxWidth, width: '100%', direction: bubble.direction === 'rtl' ? 'rtl' : 'ltr' }}
+    >
       {bubble.header && (
         <div style={{ padding: '12px 16px', backgroundColor: bubble.styles?.header?.backgroundColor }}>
           <FlexBoxRenderer box={bubble.header} />
         </div>
       )}
-      {bubble.hero && renderComponent(bubble.hero, 'hero')}
+      {bubble.styles?.hero?.separator && (
+        <hr style={{ border: 'none', borderTop: `1px solid ${bubble.styles.hero.separatorColor || '#ddd'}`, margin: 0 }} />
+      )}
+      {bubble.hero && (
+        <div style={{ backgroundColor: bubble.styles?.hero?.backgroundColor }}>
+          {renderComponent(bubble.hero, 'hero')}
+        </div>
+      )}
+      {bubble.styles?.body?.separator && (
+        <hr style={{ border: 'none', borderTop: `1px solid ${bubble.styles.body.separatorColor || '#ddd'}`, margin: 0 }} />
+      )}
       {bubble.body && (
         <div style={{ padding: '16px', backgroundColor: bubble.styles?.body?.backgroundColor }}>
           <FlexBoxRenderer box={bubble.body} />
         </div>
+      )}
+      {bubble.styles?.footer?.separator && (
+        <hr style={{ border: 'none', borderTop: `1px solid ${bubble.styles.footer.separatorColor || '#ddd'}`, margin: 0 }} />
       )}
       {bubble.footer && (
         <div style={{ padding: '12px 16px', backgroundColor: bubble.styles?.footer?.backgroundColor }}>

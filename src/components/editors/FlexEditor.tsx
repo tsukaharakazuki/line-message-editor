@@ -1,5 +1,9 @@
 import { useState, useMemo } from 'react'
 import type { FlexMessage, FlexContainer } from '../../types/line'
+import { FLEX_TEMPLATES, FLEX_TEMPLATE_CATEGORIES } from '../../data/flexTemplates'
+import type { FlexTemplate } from '../../data/flexTemplates'
+import BubbleSettingsPanel from './BubbleSettingsPanel'
+import FlexRenderer from '../preview/FlexRenderer'
 import Editor from '@monaco-editor/react'
 
 interface Props {
@@ -29,7 +33,6 @@ function findImageUrls(obj: unknown, path = ''): Array<{ path: string; url: stri
   if (record.body) results.push(...findImageUrls(record.body, `${path}.body`))
   if (record.header) results.push(...findImageUrls(record.header, `${path}.header`))
   if (record.footer) results.push(...findImageUrls(record.footer, `${path}.footer`))
-  // Deduplicate by path
   const seen = new Set<string>()
   return results.filter(r => { if (seen.has(r.path)) return false; seen.add(r.path); return true })
 }
@@ -42,12 +45,10 @@ function setAtPath(obj: unknown, path: string, value: string): unknown {
     if (match) return [match[1], Number(match[2])]
     return [p]
   })
-  // Navigate to the image object and set url
   let current: Record<string, unknown> = clone
   for (let i = 0; i < parts.length; i++) {
     const key = parts[i]
     if (i === parts.length - 1) {
-      // This should be the image object
       if (current[key] && typeof current[key] === 'object') {
         (current[key] as Record<string, unknown>).url = value
       }
@@ -58,91 +59,64 @@ function setAtPath(obj: unknown, path: string, value: string): unknown {
   return clone
 }
 
-const FLEX_TEMPLATES = [
-  {
-    name: 'Simple Bubble',
-    contents: {
-      type: 'bubble' as const,
-      body: {
-        type: 'box' as const,
-        layout: 'vertical' as const,
-        contents: [
-          { type: 'text' as const, text: 'Hello, World!', weight: 'bold' as const, size: 'xl' },
-          { type: 'text' as const, text: 'This is a Flex Message', size: 'sm', color: '#999999', margin: 'md' },
-        ],
-      },
-    },
-  },
-  {
-    name: 'With Image',
-    contents: {
-      type: 'bubble' as const,
-      hero: {
-        type: 'image' as const,
-        url: 'https://developers-resource.landpress.line.me/fx/img/01_1_cafe.png',
-        size: 'full',
-        aspectRatio: '20:13',
-        aspectMode: 'cover' as const,
-      },
-      body: {
-        type: 'box' as const,
-        layout: 'vertical' as const,
-        contents: [
-          { type: 'text' as const, text: 'Brown Cafe', weight: 'bold' as const, size: 'xl' },
-          { type: 'text' as const, text: 'A cozy place for coffee', size: 'sm', color: '#999999', margin: 'md', wrap: true },
-        ],
-      },
-      footer: {
-        type: 'box' as const,
-        layout: 'vertical' as const,
-        contents: [
-          { type: 'button' as const, action: { type: 'uri' as const, label: 'Visit', uri: 'https://example.com' }, style: 'primary' as const },
-        ],
-      },
-    },
-  },
-  {
-    name: 'Shopping',
-    contents: {
-      type: 'bubble' as const,
-      hero: {
-        type: 'image' as const,
-        url: 'https://developers-resource.landpress.line.me/fx/img/01_1_cafe.png',
-        size: 'full',
-        aspectRatio: '20:13',
-        aspectMode: 'cover' as const,
-      },
-      body: {
-        type: 'box' as const,
-        layout: 'vertical' as const,
-        contents: [
-          { type: 'text' as const, text: 'Product Name', weight: 'bold' as const, size: 'xl' },
-          {
-            type: 'box' as const, layout: 'horizontal' as const, margin: 'md', contents: [
-              { type: 'text' as const, text: '$29.99', size: 'xl', weight: 'bold' as const, color: '#EE4D2D' },
-              { type: 'text' as const, text: '$49.99', size: 'sm', color: '#AAAAAA', gravity: 'bottom' as const, decoration: 'line-through' as const },
-            ]
-          },
-          { type: 'text' as const, text: 'Limited time offer!', size: 'xs', color: '#999999', margin: 'md' },
-        ],
-      },
-      footer: {
-        type: 'box' as const,
-        layout: 'horizontal' as const,
-        spacing: 'sm',
-        contents: [
-          { type: 'button' as const, action: { type: 'uri' as const, label: 'Buy Now', uri: 'https://example.com' }, style: 'primary' as const, color: '#EE4D2D' },
-          { type: 'button' as const, action: { type: 'uri' as const, label: 'Details', uri: 'https://example.com' }, style: 'secondary' as const },
-        ],
-      },
-    },
-  },
-]
+function TemplatePicker({ onSelect }: { onSelect: (contents: FlexContainer) => void }) {
+  const [selectedCategory, setSelectedCategory] = useState('all')
+
+  const filtered = selectedCategory === 'all'
+    ? FLEX_TEMPLATES
+    : FLEX_TEMPLATES.filter(t => t.category === selectedCategory)
+
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-1 overflow-x-auto pb-1">
+        {FLEX_TEMPLATE_CATEGORIES.map((cat) => (
+          <button
+            key={cat.key}
+            type="button"
+            onClick={() => setSelectedCategory(cat.key)}
+            className={`px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap transition-colors ${
+              selectedCategory === cat.key
+                ? 'bg-[#06C755] text-white'
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto pr-1">
+        {filtered.map((template) => (
+          <TemplateCard key={template.id} template={template} onSelect={onSelect} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function TemplateCard({ template, onSelect }: { template: FlexTemplate; onSelect: (contents: FlexContainer) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(template.contents)}
+      className="border border-gray-200 rounded-lg overflow-hidden hover:border-[#06C755] hover:shadow-md transition-all text-left group"
+    >
+      <div className="h-[100px] overflow-hidden bg-gray-50 relative">
+        <div style={{ transform: 'scale(0.3)', transformOrigin: 'top left', width: '333%' }}>
+          <FlexRenderer container={template.contents} />
+        </div>
+      </div>
+      <div className="px-2.5 py-2 border-t border-gray-100">
+        <p className="text-xs font-medium text-gray-800 group-hover:text-[#06C755] transition-colors">{template.name}</p>
+        <p className="text-[10px] text-gray-400 mt-0.5">{template.description}</p>
+      </div>
+    </button>
+  )
+}
 
 export default function FlexEditor({ message, onChange }: Props) {
   const [editorValue, setEditorValue] = useState(() => JSON.stringify(message.contents, null, 2))
+  const [showPicker, setShowPicker] = useState(false)
 
-  // Find all image URLs in the current contents
   const imageEntries = useMemo(() => findImageUrls(message.contents), [message.contents])
 
   const handleEditorChange = (value: string | undefined) => {
@@ -159,6 +133,7 @@ export default function FlexEditor({ message, onChange }: Props) {
   const applyTemplate = (contents: FlexMessage['contents']) => {
     onChange({ ...message, contents })
     setEditorValue(JSON.stringify(contents, null, 2))
+    setShowPicker(false)
   }
 
   const updateImageUrl = (path: string, newUrl: string) => {
@@ -167,8 +142,14 @@ export default function FlexEditor({ message, onChange }: Props) {
     setEditorValue(JSON.stringify(updated, null, 2))
   }
 
+  const handleBubbleSettingsChange = (contents: FlexContainer) => {
+    onChange({ ...message, contents })
+    setEditorValue(JSON.stringify(contents, null, 2))
+  }
+
   return (
     <div className="space-y-4">
+      {/* Alt Text */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Alt Text</label>
         <input
@@ -179,21 +160,53 @@ export default function FlexEditor({ message, onChange }: Props) {
         />
       </div>
 
+      {/* Templates */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Templates</label>
-        <div className="flex gap-2 flex-wrap">
-          {FLEX_TEMPLATES.map((t) => (
-            <button
-              key={t.name}
-              type="button"
-              onClick={() => applyTemplate(t.contents as FlexMessage['contents'])}
-              className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-600 transition-colors"
-            >
-              {t.name}
-            </button>
-          ))}
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-sm font-medium text-gray-700">Templates</label>
+          <button
+            type="button"
+            onClick={() => setShowPicker(!showPicker)}
+            className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+              showPicker
+                ? 'bg-[#06C755] text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {showPicker ? 'Close' : 'Browse All'}
+          </button>
         </div>
+
+        {!showPicker && (
+          <div className="flex gap-2 flex-wrap">
+            {FLEX_TEMPLATES.slice(0, 5).map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => applyTemplate(t.contents)}
+                className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-600 transition-colors"
+              >
+                {t.name}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setShowPicker(true)}
+              className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-400 transition-colors"
+            >
+              +{FLEX_TEMPLATES.length - 5} more
+            </button>
+          </div>
+        )}
+
+        {showPicker && <TemplatePicker onSelect={applyTemplate} />}
       </div>
+
+      {/* Bubble Settings */}
+      <BubbleSettingsPanel
+        contents={message.contents}
+        onChange={handleBubbleSettingsChange}
+      />
 
       {/* Image URL quick editor */}
       {imageEntries.length > 0 && (
@@ -225,6 +238,7 @@ export default function FlexEditor({ message, onChange }: Props) {
         </div>
       )}
 
+      {/* Monaco JSON Editor */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Flex Contents (JSON)</label>
         <div className="border border-gray-300 rounded-lg overflow-hidden" style={{ height: '400px' }}>
