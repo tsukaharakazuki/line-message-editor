@@ -8,6 +8,7 @@ import type {
   ImagemapMessage,
   TemplateMessage,
   FlexMessage,
+  CouponMessage,
   LineMessage,
 } from '../types/line'
 
@@ -99,6 +100,13 @@ export function defaultFlexMessage(): FlexMessage {
   }
 }
 
+export function defaultCouponMessage(): CouponMessage {
+  return {
+    type: 'coupon',
+    couponId: '',
+  }
+}
+
 export function defaultMessage(type: LineMessage['type']): LineMessage {
   switch (type) {
     case 'text': return defaultTextMessage()
@@ -110,5 +118,6 @@ export function defaultMessage(type: LineMessage['type']): LineMessage {
     case 'imagemap': return defaultImagemapMessage()
     case 'template': return defaultTemplateMessage()
     case 'flex': return defaultFlexMessage()
+    case 'coupon': return defaultCouponMessage()
   }
 }

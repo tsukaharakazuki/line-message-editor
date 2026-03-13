@@ -348,6 +348,14 @@ export interface FlexSpan {
   decoration?: 'none' | 'underline' | 'line-through'
 }
 
+// --- Coupon Message ---
+export interface CouponMessage {
+  type: 'coupon'
+  couponId: string
+  deliveryTag?: string
+  quickReply?: QuickReply
+}
+
 // --- Union of all message types ---
 export type LineMessage =
   | TextMessage
@@ -359,6 +367,7 @@ export type LineMessage =
   | ImagemapMessage
   | TemplateMessage
   | FlexMessage
+  | CouponMessage
 
 export type MessageType = LineMessage['type']
 
@@ -372,6 +381,7 @@ export const MESSAGE_TYPE_LABELS: Record<MessageType, string> = {
   imagemap: 'Imagemap',
   template: 'Template',
   flex: 'Flex Message',
+  coupon: 'Coupon',
 }
 
 export type TemplateType = Template['type']

@@ -12,11 +12,12 @@ import LocationEditor from './components/editors/LocationEditor'
 import ImagemapEditor from './components/editors/ImagemapEditor'
 import TemplateEditor from './components/editors/TemplateEditor'
 import FlexEditor from './components/editors/FlexEditor'
+import CouponEditor from './components/editors/CouponEditor'
 import QuickReplyEditor from './components/common/QuickReplyEditor'
 import JsonPanel from './components/common/JsonPanel'
 import ChatPreview from './components/preview/ChatPreview'
 
-const MESSAGE_TYPES: MessageType[] = ['text', 'sticker', 'image', 'video', 'audio', 'location', 'imagemap', 'template', 'flex']
+const MESSAGE_TYPES: MessageType[] = ['text', 'sticker', 'image', 'video', 'audio', 'location', 'imagemap', 'template', 'flex', 'coupon']
 
 function App() {
   const [savedMessages, setSavedMessages] = useLocalStorage<Record<MessageType, LineMessage>>('line-msg-editor', {} as Record<MessageType, LineMessage>)
@@ -65,6 +66,8 @@ function App() {
         return <TemplateEditor message={message} onChange={setMessage as (m: typeof message) => void} />
       case 'flex':
         return <FlexEditor message={message} onChange={setMessage as (m: typeof message) => void} />
+      case 'coupon':
+        return <CouponEditor message={message} onChange={setMessage as (m: typeof message) => void} />
     }
   }
 
