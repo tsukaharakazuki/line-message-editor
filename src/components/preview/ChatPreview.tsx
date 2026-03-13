@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { LineMessage, ButtonsTemplate, ConfirmTemplate, CarouselTemplate, ImageCarouselTemplate } from '../../types/line'
 import FlexRenderer from './FlexRenderer'
 
@@ -47,6 +47,7 @@ export default function ChatPreview({ message }: Props) {
 
 function SafeImage({ src, alt, className, fallback }: { src: string; alt: string; className?: string; fallback: React.ReactNode }) {
   const [hasError, setHasError] = useState(false)
+  useEffect(() => { setHasError(false) }, [src])
   if (hasError || !src) return <>{fallback}</>
   return <img src={src} alt={alt} className={className} onError={() => setHasError(true)} />
 }
@@ -142,10 +143,10 @@ function MessageContent({ message }: { message: LineMessage }) {
         <div className="rounded-2xl rounded-bl-sm overflow-hidden shadow-sm max-w-[240px]">
           <div className="relative bg-gray-200" style={{ aspectRatio: `${message.baseSize.width} / ${message.baseSize.height}` }}>
             <SafeImage
-              src={/\.\w{3,4}$/.test(message.baseUrl) ? message.baseUrl : `${message.baseUrl}/1040`}
+              src={/\.\w{3,4}(\?.*)?$/.test(message.baseUrl) ? message.baseUrl : `${message.baseUrl}/1040`}
               alt={message.altText}
               className="w-full h-full object-cover"
-              fallback={null}
+              fallback={<div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">No Image</div>}
             />
             {message.actions.map((action, i) => {
               const scaleX = 100 / message.baseSize.width
