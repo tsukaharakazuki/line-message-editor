@@ -11,6 +11,11 @@ export default function ImagemapEditor({ message, onChange }: Props) {
   const [drawing, setDrawing] = useState(false)
   const [startPos, setStartPos] = useState({ x: 0, y: 0 })
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
+  const [imageError, setImageError] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState('')
+
+  // Imagemap uses baseUrl + /1040 for the actual image
+  const imageUrl = previewUrl || (message.baseUrl ? `${message.baseUrl}/1040` : '')
 
   const getRelativePos = useCallback((e: React.MouseEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect()
@@ -66,9 +71,20 @@ export default function ImagemapEditor({ message, onChange }: Props) {
         <input
           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
           value={message.baseUrl}
-          onChange={(e) => onChange({ ...message, baseUrl: e.target.value })}
+          onChange={(e) => { onChange({ ...message, baseUrl: e.target.value }); setImageError(false) }}
           placeholder="https://example.com/imagemap"
         />
+        <p className="text-xs text-gray-400 mt-1">Image is loaded from Base URL + /1040</p>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Preview Image URL (optional)</label>
+        <input
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          value={previewUrl}
+          onChange={(e) => { setPreviewUrl(e.target.value); setImageError(false) }}
+          placeholder="https://example.com/preview.jpg (direct image URL for preview)"
+        />
+        <p className="text-xs text-gray-400 mt-1">Use this if Base URL + /1040 doesn't load directly</p>
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Alt Text</label>
@@ -106,11 +122,20 @@ export default function ImagemapEditor({ message, onChange }: Props) {
         </label>
         <div
           ref={canvasRef}
-          className="relative w-full bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg cursor-crosshair select-none"
+          className="relative w-full bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg cursor-crosshair select-none overflow-hidden"
           style={{ aspectRatio: `${message.baseSize.width} / ${message.baseSize.height}` }}
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
         >
+          {/* Background image preview */}
+          {imageUrl && !imageError && (
+            <img
+              src={imageUrl}
+              alt="Imagemap background"
+              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+              onError={() => setImageError(true)}
+            />
+          )}
           {message.actions.map((action, i) => {
             const scaleX = 100 / message.baseSize.width
             const scaleY = 100 / message.baseSize.height
@@ -132,9 +157,16 @@ export default function ImagemapEditor({ message, onChange }: Props) {
               </div>
             )
           })}
-          {message.actions.length === 0 && (
+          {message.actions.length === 0 && !imageUrl && (
             <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
-              Drag to create tap areas
+              Enter an image URL above, then drag to create tap areas
+            </div>
+          )}
+          {message.actions.length === 0 && imageUrl && !imageError && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="bg-black/50 text-white text-xs px-3 py-1.5 rounded-lg">
+                Drag to create tap areas
+              </span>
             </div>
           )}
         </div>

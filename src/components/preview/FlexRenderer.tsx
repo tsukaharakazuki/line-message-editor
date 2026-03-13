@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { FlexContainer, FlexBubble, FlexComponent, FlexBox, FlexText, FlexImage, FlexButton, FlexIcon, FlexSeparator } from '../../types/line'
 
 function renderComponent(component: FlexComponent, key: string | number): React.ReactNode {
@@ -90,6 +91,7 @@ function FlexTextRenderer({ text }: { text: FlexText }) {
 }
 
 function FlexImageRenderer({ image }: { image: FlexImage }) {
+  const [hasError, setHasError] = useState(false)
   const style: React.CSSProperties = {
     flex: image.flex,
     margin: image.margin ? spacingToPixels(image.margin) : undefined,
@@ -98,16 +100,18 @@ function FlexImageRenderer({ image }: { image: FlexImage }) {
   }
   return (
     <div style={style}>
-      <img
-        src={image.url}
-        alt=""
-        style={{
-          width: '100%',
-          objectFit: image.aspectMode === 'cover' ? 'cover' : 'contain',
-          aspectRatio: image.aspectRatio?.replace(':', '/'),
-        }}
-        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-      />
+      {!hasError && image.url && (
+        <img
+          src={image.url}
+          alt=""
+          style={{
+            width: '100%',
+            objectFit: image.aspectMode === 'cover' ? 'cover' : 'contain',
+            aspectRatio: image.aspectRatio?.replace(':', '/'),
+          }}
+          onError={() => setHasError(true)}
+        />
+      )}
     </div>
   )
 }
@@ -134,6 +138,8 @@ function FlexButtonRenderer({ button }: { button: FlexButton }) {
 }
 
 function FlexIconRenderer({ icon }: { icon: FlexIcon }) {
+  const [hasError, setHasError] = useState(false)
+  if (hasError || !icon.url) return null
   return (
     <img
       src={icon.url}
@@ -143,7 +149,7 @@ function FlexIconRenderer({ icon }: { icon: FlexIcon }) {
         height: sizeToPixels(icon.size),
         margin: icon.margin ? spacingToPixels(icon.margin) : undefined,
       }}
-      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+      onError={() => setHasError(true)}
     />
   )
 }

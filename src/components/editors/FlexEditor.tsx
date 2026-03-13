@@ -1,9 +1,61 @@
-import type { FlexMessage } from '../../types/line'
+import { useState, useMemo } from 'react'
+import type { FlexMessage, FlexContainer } from '../../types/line'
 import Editor from '@monaco-editor/react'
 
 interface Props {
   message: FlexMessage
   onChange: (message: FlexMessage) => void
+}
+
+// Recursively find all image URLs in a Flex container
+function findImageUrls(obj: unknown, path = ''): Array<{ path: string; url: string }> {
+  const results: Array<{ path: string; url: string }> = []
+  if (!obj || typeof obj !== 'object') return results
+  const record = obj as Record<string, unknown>
+  if (record.type === 'image' && typeof record.url === 'string') {
+    results.push({ path, url: record.url })
+  }
+  if (record.type === 'bubble' && record.hero && typeof record.hero === 'object') {
+    const hero = record.hero as Record<string, unknown>
+    if (hero.type === 'image' && typeof hero.url === 'string') {
+      results.push({ path: `${path}.hero`, url: hero.url })
+    }
+  }
+  if (Array.isArray(record.contents)) {
+    record.contents.forEach((item: unknown, i: number) => {
+      results.push(...findImageUrls(item, `${path}.contents[${i}]`))
+    })
+  }
+  if (record.body) results.push(...findImageUrls(record.body, `${path}.body`))
+  if (record.header) results.push(...findImageUrls(record.header, `${path}.header`))
+  if (record.footer) results.push(...findImageUrls(record.footer, `${path}.footer`))
+  // Deduplicate by path
+  const seen = new Set<string>()
+  return results.filter(r => { if (seen.has(r.path)) return false; seen.add(r.path); return true })
+}
+
+// Set a value at a dot-bracket path like ".hero.url" or ".contents[0].url"
+function setAtPath(obj: unknown, path: string, value: string): unknown {
+  const clone = JSON.parse(JSON.stringify(obj))
+  const parts = path.replace(/^\./, '').split(/\./).flatMap(p => {
+    const match = p.match(/^(\w+)\[(\d+)\]$/)
+    if (match) return [match[1], Number(match[2])]
+    return [p]
+  })
+  // Navigate to the image object and set url
+  let current: Record<string, unknown> = clone
+  for (let i = 0; i < parts.length; i++) {
+    const key = parts[i]
+    if (i === parts.length - 1) {
+      // This should be the image object
+      if (current[key] && typeof current[key] === 'object') {
+        (current[key] as Record<string, unknown>).url = value
+      }
+    } else {
+      current = (current as Record<string, unknown>)[key] as Record<string, unknown>
+    }
+  }
+  return clone
 }
 
 const FLEX_TEMPLATES = [
@@ -88,10 +140,14 @@ const FLEX_TEMPLATES = [
 ]
 
 export default function FlexEditor({ message, onChange }: Props) {
-  const contentsJson = JSON.stringify(message.contents, null, 2)
+  const [editorValue, setEditorValue] = useState(() => JSON.stringify(message.contents, null, 2))
+
+  // Find all image URLs in the current contents
+  const imageEntries = useMemo(() => findImageUrls(message.contents), [message.contents])
 
   const handleEditorChange = (value: string | undefined) => {
     if (!value) return
+    setEditorValue(value)
     try {
       const parsed = JSON.parse(value)
       onChange({ ...message, contents: parsed })
@@ -102,6 +158,13 @@ export default function FlexEditor({ message, onChange }: Props) {
 
   const applyTemplate = (contents: FlexMessage['contents']) => {
     onChange({ ...message, contents })
+    setEditorValue(JSON.stringify(contents, null, 2))
+  }
+
+  const updateImageUrl = (path: string, newUrl: string) => {
+    const updated = setAtPath(message.contents, path, newUrl) as FlexContainer
+    onChange({ ...message, contents: updated })
+    setEditorValue(JSON.stringify(updated, null, 2))
   }
 
   return (
@@ -132,6 +195,36 @@ export default function FlexEditor({ message, onChange }: Props) {
         </div>
       </div>
 
+      {/* Image URL quick editor */}
+      {imageEntries.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Image URLs</label>
+          <div className="space-y-2">
+            {imageEntries.map((entry, i) => (
+              <div key={entry.path} className="flex gap-2 items-start">
+                <div className="flex-1">
+                  <label className="block text-xs text-gray-400 mb-1">Image {i + 1} <span className="text-gray-300">({entry.path})</span></label>
+                  <input
+                    className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
+                    value={entry.url}
+                    onChange={(e) => updateImageUrl(entry.path, e.target.value)}
+                    placeholder="https://example.com/image.jpg"
+                  />
+                </div>
+                {entry.url && entry.url.startsWith('http') && (
+                  <img
+                    src={entry.url}
+                    alt=""
+                    className="w-12 h-12 object-cover rounded border border-gray-200 flex-shrink-0 mt-5"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Flex Contents (JSON)</label>
         <div className="border border-gray-300 rounded-lg overflow-hidden" style={{ height: '400px' }}>
@@ -139,7 +232,7 @@ export default function FlexEditor({ message, onChange }: Props) {
             height="100%"
             language="json"
             theme="vs-dark"
-            value={contentsJson}
+            value={editorValue}
             onChange={handleEditorChange}
             options={{
               minimap: { enabled: false },

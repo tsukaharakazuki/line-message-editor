@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { LineMessage, ButtonsTemplate, ConfirmTemplate, CarouselTemplate, ImageCarouselTemplate } from '../../types/line'
 import FlexRenderer from './FlexRenderer'
 
@@ -44,6 +45,12 @@ export default function ChatPreview({ message }: Props) {
   )
 }
 
+function SafeImage({ src, alt, className, fallback }: { src: string; alt: string; className?: string; fallback: React.ReactNode }) {
+  const [hasError, setHasError] = useState(false)
+  if (hasError || !src) return <>{fallback}</>
+  return <img src={src} alt={alt} className={className} onError={() => setHasError(true)} />
+}
+
 function MessageContent({ message }: { message: LineMessage }) {
   switch (message.type) {
     case 'text':
@@ -56,17 +63,15 @@ function MessageContent({ message }: { message: LineMessage }) {
     case 'sticker':
       return (
         <div className="p-2">
-          <img
+          <SafeImage
             src={`https://stickershop.line-scdn.net/stickershop/v1/sticker/${message.stickerId}/iPhone/sticker@2x.png`}
             alt="sticker"
             className="w-24 h-24 object-contain"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none'
-              const parent = (e.target as HTMLImageElement).parentElement
-              if (parent) {
-                parent.innerHTML = `<div class="w-24 h-24 bg-white/80 rounded-xl flex items-center justify-center text-xs text-gray-500">Sticker<br/>${message.packageId}/${message.stickerId}</div>`
-              }
-            }}
+            fallback={
+              <div className="w-24 h-24 bg-white/80 rounded-xl flex items-center justify-center text-xs text-gray-500 text-center">
+                Sticker<br />{message.packageId}/{message.stickerId}
+              </div>
+            }
           />
         </div>
       )
@@ -74,17 +79,13 @@ function MessageContent({ message }: { message: LineMessage }) {
     case 'image':
       return (
         <div className="rounded-2xl rounded-bl-sm overflow-hidden shadow-sm max-w-[240px]">
-          <img
+          <SafeImage
             src={message.previewImageUrl}
             alt="image"
             className="w-full object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = ''
-              const parent = (e.target as HTMLImageElement).parentElement
-              if (parent) {
-                parent.innerHTML = '<div class="w-60 h-40 bg-gray-200 flex items-center justify-center text-xs text-gray-500">Image Preview</div>'
-              }
-            }}
+            fallback={
+              <div className="w-60 h-40 bg-gray-200 flex items-center justify-center text-xs text-gray-500">Image Preview</div>
+            }
           />
         </div>
       )
@@ -93,11 +94,11 @@ function MessageContent({ message }: { message: LineMessage }) {
       return (
         <div className="rounded-2xl rounded-bl-sm overflow-hidden shadow-sm bg-black max-w-[240px]">
           <div className="w-60 h-40 flex items-center justify-center relative">
-            <img
+            <SafeImage
               src={message.previewImageUrl}
               alt="video preview"
               className="absolute inset-0 w-full h-full object-cover"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+              fallback={<div className="absolute inset-0 bg-gray-800" />}
             />
             <div className="relative w-12 h-12 rounded-full bg-white/80 flex items-center justify-center">
               <div className="w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-l-[14px] border-l-gray-700 ml-1" />
@@ -140,11 +141,11 @@ function MessageContent({ message }: { message: LineMessage }) {
       return (
         <div className="rounded-2xl rounded-bl-sm overflow-hidden shadow-sm max-w-[240px]">
           <div className="relative bg-gray-200" style={{ aspectRatio: `${message.baseSize.width} / ${message.baseSize.height}` }}>
-            <img
+            <SafeImage
               src={`${message.baseUrl}/1040`}
               alt={message.altText}
               className="w-full h-full object-cover"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+              fallback={null}
             />
             {message.actions.map((action, i) => {
               const scaleX = 100 / message.baseSize.width
@@ -186,14 +187,14 @@ function MessageContent({ message }: { message: LineMessage }) {
   }
 }
 
-function TemplatePreview({ template }: { template: LineMessage extends { type: 'template' } ? never : any }) {
+function TemplatePreview({ template }: { template: ButtonsTemplate | ConfirmTemplate | CarouselTemplate | ImageCarouselTemplate }) {
   switch (template.type) {
     case 'buttons': {
       const t = template as ButtonsTemplate
       return (
         <div className="bg-white rounded-2xl rounded-bl-sm overflow-hidden shadow-sm max-w-[240px]">
           {t.thumbnailImageUrl && (
-            <img src={t.thumbnailImageUrl} alt="" className="w-full h-32 object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+            <SafeImage src={t.thumbnailImageUrl} alt="" className="w-full h-32 object-cover" fallback={null} />
           )}
           <div className="p-3">
             {t.title && <p className="text-sm font-bold">{t.title}</p>}
@@ -233,7 +234,7 @@ function TemplatePreview({ template }: { template: LineMessage extends { type: '
           {t.columns.map((col, i) => (
             <div key={i} className="flex-shrink-0 bg-white rounded-2xl overflow-hidden shadow-sm" style={{ width: '200px' }}>
               {col.thumbnailImageUrl && (
-                <img src={col.thumbnailImageUrl} alt="" className="w-full h-24 object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                <SafeImage src={col.thumbnailImageUrl} alt="" className="w-full h-24 object-cover" fallback={null} />
               )}
               <div className="p-3">
                 {col.title && <p className="text-xs font-bold">{col.title}</p>}
@@ -257,7 +258,12 @@ function TemplatePreview({ template }: { template: LineMessage extends { type: '
         <div className="flex gap-2 overflow-x-auto pb-1">
           {t.columns.map((col, i) => (
             <div key={i} className="flex-shrink-0 rounded-2xl overflow-hidden shadow-sm" style={{ width: '160px' }}>
-              <img src={col.imageUrl} alt="" className="w-full h-40 object-cover bg-gray-200" onError={(e) => { (e.target as HTMLImageElement).src = '' }} />
+              <SafeImage
+                src={col.imageUrl}
+                alt=""
+                className="w-full h-40 object-cover bg-gray-200"
+                fallback={<div className="w-full h-40 bg-gray-200 flex items-center justify-center text-xs text-gray-500">No Image</div>}
+              />
             </div>
           ))}
         </div>
