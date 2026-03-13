@@ -6,10 +6,11 @@ interface Props {
   onChange: (message: ImagemapMessage) => void
 }
 
-type GuidePattern = 'none' | 'v2' | 'h2' | 'grid4' | 'grid6' | 'grid9'
+type GuidePattern = 'none' | 'full' | 'v2' | 'h2' | 'grid4' | 'grid6' | 'grid9'
 
 const GUIDE_PATTERNS: { value: GuidePattern; label: string; icon: string }[] = [
   { value: 'none', label: 'None', icon: '[ ]' },
+  { value: 'full', label: '1', icon: '■' },
   { value: 'v2', label: '2 Cols', icon: '||' },
   { value: 'h2', label: '2 Rows', icon: '=' },
   { value: 'grid4', label: '2x2', icon: '#+' },
@@ -30,6 +31,9 @@ function getGuideLines(pattern: GuidePattern): { vertical: number[]; horizontal:
 
 function getSnapAreas(pattern: GuidePattern, w: number, h: number): ImagemapArea[] {
   switch (pattern) {
+    case 'full': return [
+      { x: 0, y: 0, width: w, height: h },
+    ]
     case 'v2': return [
       { x: 0, y: 0, width: w / 2, height: h },
       { x: w / 2, y: 0, width: w / 2, height: h },
