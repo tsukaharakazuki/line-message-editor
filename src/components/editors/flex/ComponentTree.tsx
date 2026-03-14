@@ -181,74 +181,102 @@ function TreeNode({
 }
 
 export default function ComponentTree({ bubble, selectedPath, onSelect, onAdd, onRemove, onMove }: Props) {
+  const topSections = SECTIONS.filter(s => s.key !== 'footer')
+  const footerSection = SECTIONS.find(s => s.key === 'footer')!
+
   return (
-    <div className="text-xs overflow-y-auto">
-      {SECTIONS.map(({ key, label }) => {
-        const section = bubble[key]
-        if (!section) {
-          return (
-            <div key={key} className="py-1 px-2">
-              <span className="text-[11px] font-medium text-gray-300">{label}</span>
-              <span className="text-[10px] text-gray-300 ml-1">(empty)</span>
-            </div>
-          )
-        }
+    <div className="text-xs overflow-y-auto flex flex-col h-full">
+      {/* Top sections: header, hero, body */}
+      <div className="flex-shrink-0">
+        {topSections.map(({ key, label }) => (
+          <SectionNode key={key} sectionKey={key} label={label} bubble={bubble} selectedPath={selectedPath} onSelect={onSelect} onAdd={onAdd} onRemove={onRemove} onMove={onMove} />
+        ))}
+      </div>
 
-        // hero can be any FlexComponent (usually image)
-        if (key === 'hero') {
-          return (
-            <div key={key}>
-              <div className="py-0.5 px-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{label}</div>
-              <TreeNode
-                component={section as FlexComponent}
-                path="hero"
-                depth={0}
-                selectedPath={selectedPath}
-                onSelect={onSelect}
-                onAdd={onAdd}
-                onRemove={onRemove}
-                onMove={onMove}
-                canMoveUp={false}
-                canMoveDown={false}
-              />
-            </div>
-          )
-        }
+      {/* Spacer pushes footer to bottom */}
+      <div className="flex-1" />
 
-        // header, body, footer are FlexBox
-        const box = section as FlexBox
-        return (
-          <div key={key}>
-            <div
-              className={`py-0.5 px-2 text-[11px] font-semibold uppercase tracking-wider cursor-pointer hover:text-[#06C755] ${
-                selectedPath === key ? 'text-blue-600' : 'text-gray-500'
-              }`}
-              onClick={() => onSelect(key)}
-            >
-              {label}
-            </div>
-            {box.contents.map((child, i) => (
-              <TreeNode
-                key={`${key}.contents.${i}`}
-                component={child}
-                path={`${key}.contents.${i}`}
-                depth={1}
-                selectedPath={selectedPath}
-                onSelect={onSelect}
-                onAdd={onAdd}
-                onRemove={onRemove}
-                onMove={onMove}
-                canMoveUp={i > 0}
-                canMoveDown={i < box.contents.length - 1}
-              />
-            ))}
-            {/* Add to section root */}
-            <div className="relative" style={{ paddingLeft: '16px' }}>
-              <AddButton parentPath={key} onAdd={onAdd} />
-            </div>
-          </div>
-        )
-      })}
+      {/* Footer always at bottom */}
+      <div className="flex-shrink-0 border-t border-gray-100">
+        <SectionNode sectionKey={footerSection.key} label={footerSection.label} bubble={bubble} selectedPath={selectedPath} onSelect={onSelect} onAdd={onAdd} onRemove={onRemove} onMove={onMove} />
+      </div>
+    </div>
+  )
+}
+
+function SectionNode({ sectionKey, label, bubble, selectedPath, onSelect, onAdd, onRemove, onMove }: {
+  sectionKey: string
+  label: string
+  bubble: FlexBubble
+  selectedPath: string | null
+  onSelect: (path: string) => void
+  onAdd: (parentPath: string, type: FlexComponent['type']) => void
+  onRemove: (path: string) => void
+  onMove: (path: string, direction: 'up' | 'down') => void
+}) {
+  const section = bubble[sectionKey as keyof FlexBubble]
+
+  if (!section || typeof section !== 'object' || !('type' in (section as Record<string, unknown>))) {
+    return (
+      <div className="py-1 px-2">
+        <span className="text-[11px] font-medium text-gray-300">{label}</span>
+        <span className="text-[10px] text-gray-300 ml-1">(empty)</span>
+      </div>
+    )
+  }
+
+  // hero can be any FlexComponent (usually image)
+  if (sectionKey === 'hero') {
+    return (
+      <div>
+        <div className="py-0.5 px-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{label}</div>
+        <TreeNode
+          component={section as FlexComponent}
+          path="hero"
+          depth={0}
+          selectedPath={selectedPath}
+          onSelect={onSelect}
+          onAdd={onAdd}
+          onRemove={onRemove}
+          onMove={onMove}
+          canMoveUp={false}
+          canMoveDown={false}
+        />
+      </div>
+    )
+  }
+
+  // header, body, footer are FlexBox
+  const box = section as FlexBox
+  return (
+    <div>
+      <div
+        className={`py-0.5 px-2 text-[11px] font-semibold uppercase tracking-wider cursor-pointer hover:text-[#06C755] ${
+          selectedPath === sectionKey ? 'text-blue-600' : 'text-gray-500'
+        }`}
+        onClick={() => onSelect(sectionKey)}
+      >
+        {label}
+      </div>
+      {box.contents.map((child, i) => (
+        <TreeNode
+          key={`${sectionKey}.contents.${i}`}
+          component={child}
+          path={`${sectionKey}.contents.${i}`}
+          depth={1}
+          selectedPath={selectedPath}
+          onSelect={onSelect}
+          onAdd={onAdd}
+          onRemove={onRemove}
+          onMove={onMove}
+          canMoveUp={i > 0}
+          canMoveDown={i < box.contents.length - 1}
+        />
+      ))}
+      {/* Add to section root */}
+      <div className="relative" style={{ paddingLeft: '16px' }}>
+        <AddButton parentPath={sectionKey} onAdd={onAdd} />
+      </div>
     </div>
   )
 }
