@@ -3,33 +3,49 @@ import type { LineMessage, ButtonsTemplate, ConfirmTemplate, CarouselTemplate, I
 import FlexRenderer from './FlexRenderer'
 
 interface Props {
-  message: LineMessage
+  messages: LineMessage[]
+  activeIndex?: number
 }
 
-export default function ChatPreview({ message }: Props) {
+export default function ChatPreview({ messages, activeIndex }: Props) {
+  const lastMessage = messages[messages.length - 1]
+  const hasQuickReply = lastMessage?.quickReply && lastMessage.quickReply.items.length > 0
+
   return (
     <div className="flex flex-col h-full">
       {/* LINE-like header */}
       <div className="bg-[#06C755] text-white px-4 py-3 flex items-center gap-3 rounded-t-xl">
         <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">B</div>
         <span className="font-medium text-sm">Bot Preview</span>
+        {messages.length > 1 && (
+          <span className="ml-auto text-white/60 text-xs">{messages.length} messages</span>
+        )}
       </div>
 
       {/* Chat area */}
       <div className="flex-1 bg-[#7494C0] p-4 overflow-y-auto" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Ccircle cx=\'10\' cy=\'10\' r=\'1\' fill=\'rgba(255,255,255,0.1)\'/%3E%3C/svg%3E")' }}>
-        <div className="flex items-end gap-2">
-          <div className="w-8 h-8 rounded-full bg-white/50 flex-shrink-0 flex items-center justify-center text-xs">B</div>
-          <div className="max-w-[85%]">
-            <MessageContent message={message} />
-          </div>
+        <div className="space-y-1.5">
+          {messages.map((msg, i) => (
+            <div key={i} className="flex items-end gap-2">
+              {/* Avatar: show only on first message */}
+              {i === 0 ? (
+                <div className="w-8 h-8 rounded-full bg-white/50 flex-shrink-0 flex items-center justify-center text-xs">B</div>
+              ) : (
+                <div className="w-8 flex-shrink-0" />
+              )}
+              <div className={`max-w-[85%] transition-all ${activeIndex === i ? 'ring-2 ring-[#06C755] ring-offset-1 rounded-2xl' : ''}`}>
+                <MessageContent message={msg} />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Quick Reply preview */}
-      {message.quickReply && message.quickReply.items.length > 0 && (
+      {/* Quick Reply preview - only from last message */}
+      {hasQuickReply && (
         <div className="bg-white border-t border-gray-200 px-3 py-2 overflow-x-auto rounded-b-xl">
           <div className="flex gap-2">
-            {message.quickReply.items.map((item, i) => (
+            {lastMessage.quickReply!.items.map((item, i) => (
               <button
                 key={i}
                 type="button"
