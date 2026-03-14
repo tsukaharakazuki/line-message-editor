@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import type { LineMessage, MessageType } from './types/line'
 import { MESSAGE_TYPE_LABELS } from './types/line'
 import { defaultMessage } from './utils/templates'
@@ -24,6 +24,8 @@ function App() {
   const [messages, setMessages] = useLocalStorage<LineMessage[]>('line-msg-editor-v2', [defaultMessage('text')])
   const [activeIndex, setActiveIndex] = useState(0)
   const [showAddMenu, setShowAddMenu] = useState(false)
+  const addBtnRef = useRef<HTMLButtonElement>(null)
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
 
   // Ensure activeIndex is within bounds
   const safeIndex = Math.min(activeIndex, messages.length - 1)
@@ -230,8 +232,15 @@ function App() {
         {messages.length < MAX_MESSAGES && (
           <div className="relative flex-shrink-0">
             <button
+              ref={addBtnRef}
               type="button"
-              onClick={() => setShowAddMenu(!showAddMenu)}
+              onClick={() => {
+                if (addBtnRef.current) {
+                  const rect = addBtnRef.current.getBoundingClientRect()
+                  setMenuPos({ top: rect.bottom + 4, left: rect.left })
+                }
+                setShowAddMenu(!showAddMenu)
+              }}
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-dashed border-gray-300 text-gray-400 hover:border-[#06C755] hover:text-[#06C755] transition-colors text-xs font-medium"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
@@ -239,8 +248,11 @@ function App() {
             </button>
             {showAddMenu && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setShowAddMenu(false)} />
-                <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1 min-w-[140px]">
+                <div className="fixed inset-0 z-40" onClick={() => setShowAddMenu(false)} />
+                <div
+                  className="fixed bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 min-w-[140px]"
+                  style={{ top: menuPos.top, left: menuPos.left }}
+                >
                   {MESSAGE_TYPES.map(t => (
                     <button
                       key={t}
