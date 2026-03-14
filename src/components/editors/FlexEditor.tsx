@@ -357,7 +357,7 @@ export default function FlexEditor({ message, onChange }: Props) {
 
         {/* GUI Mode */}
         {editorMode === 'gui' && bubble && (
-          <div className="flex border border-gray-200 rounded-b-lg overflow-hidden" style={{ minHeight: '400px' }}>
+          <div className="flex border border-gray-200 rounded-b-lg overflow-hidden" style={{ minHeight: 'calc(100vh - 320px)' }}>
             {/* Tree panel */}
             <div className="w-[200px] border-r border-gray-200 overflow-y-auto bg-white flex-shrink-0">
               <ComponentTree
