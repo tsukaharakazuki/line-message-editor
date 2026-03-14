@@ -86,6 +86,7 @@ export default function ImagemapEditor({ message, onChange }: Props) {
   const [imageError, setImageError] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
   const [guide, setGuide] = useState<GuidePattern>('none')
+  const [showBaseUrlTip, setShowBaseUrlTip] = useState(false)
 
   const displayImageUrl = imageUrl || (message.baseUrl ? `${message.baseUrl}/1040` : '')
   const guideLines = getGuideLines(guide)
@@ -182,13 +183,26 @@ export default function ImagemapEditor({ message, onChange }: Props) {
       {/* Base URL / Alt Text / Size - compact */}
       <div className="grid grid-cols-2 gap-2">
         <div className="col-span-2">
-          <label className="block text-xs text-gray-500 mb-1">Base URL</label>
+          <label className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+            Base URL
+            <button
+              type="button"
+              className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-gray-200 text-[9px] font-bold text-gray-500 cursor-help hover:bg-gray-300"
+              onClick={() => setShowBaseUrlTip(!showBaseUrlTip)}
+            >?</button>
+          </label>
           <input
             className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
             value={message.baseUrl}
             onChange={(e) => { onChange({ ...message, baseUrl: e.target.value }); setImageError(false) }}
             placeholder="https://example.com/imagemap"
           />
+          {showBaseUrlTip && (
+            <div className="mt-1.5 bg-gray-800 text-white text-[11px] leading-relaxed p-2.5 rounded-lg">
+              Base URLには画像のURLからファイル名拡張子とサイズ指定を除いたURLを設定します。例: <span className="font-mono text-green-300">https://example.com/images/cats</span> のように設定すると、LINEが自動的に <span className="font-mono text-green-300">/700</span>, <span className="font-mono text-green-300">/1040</span> 等を付与して取得します。
+              <a href="https://developers.line.biz/ja/reference/messaging-api/#base-url" target="_blank" rel="noopener noreferrer" className="block mt-1.5 text-blue-300 hover:text-blue-200 underline">API リファレンスを見る →</a>
+            </div>
+          )}
         </div>
         <div className="col-span-2">
           <label className="block text-xs text-gray-500 mb-1">Alt Text</label>
