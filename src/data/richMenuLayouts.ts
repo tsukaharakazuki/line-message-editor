@@ -25,7 +25,8 @@ export const RICH_MENU_LAYOUTS: RichMenuLayoutPreset[] = [
   { id: 'grid-3x2', label: '3×2', getAreas: grid(3, 2) },
   { id: 'grid-4x2', label: '4×2', getAreas: grid(4, 2) },
   { id: 'grid-3x3', label: '3×3', getAreas: grid(3, 3) },
-  { id: 'tab-grid-2x2', label: 'タブ＋2×2', getAreas: (w, h) => [{ x: 0, y: 0, width: w, height: Math.round(h * .22) }, ...grid(2, 2)(w, Math.round(h * .78)).map((area) => ({ ...area, y: area.y + Math.round(h * .22) }))] },
-  { id: 'tab-columns-3', label: 'タブ＋3列', getAreas: (w, h) => [{ x: 0, y: 0, width: w, height: Math.round(h * .22) }, ...grid(3, 1)(w, Math.round(h * .78)).map((area) => ({ ...area, y: area.y + Math.round(h * .22) }))] },
-  { id: 'tab-columns-2', label: 'タブ＋2列', getAreas: (w, h) => [{ x: 0, y: 0, width: w, height: Math.round(h * .22) }, ...grid(2, 1)(w, Math.round(h * .78)).map((area) => ({ ...area, y: area.y + Math.round(h * .22) }))] },
+  // LINEのrichmenuswitchは、タブごとに別リッチメニューを表示し、各画像の全高をタブ領域として使う。
+  { id: 'tab-columns-2', label: '切替タブ 2枚', getAreas: grid(2, 1) },
+  { id: 'tab-columns-3', label: '切替タブ 3枚', getAreas: grid(3, 1) },
+  { id: 'tab-columns-4', label: '切替タブ 4枚', getAreas: grid(4, 1) },
 ]
