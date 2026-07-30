@@ -14,16 +14,31 @@ import TemplateEditor from '../components/editors/TemplateEditor'
 import FlexEditor from '../components/editors/FlexEditor'
 import CouponEditor from '../components/editors/CouponEditor'
 import QuickReplyEditor from '../components/common/QuickReplyEditor'
-import JsonPanel from '../components/common/JsonPanel'
 import ChatPreview from '../components/preview/ChatPreview'
+import { Button } from '../components/ui/Button'
+import { Copy, Download, Upload } from 'lucide-react'
+import { downloadJson } from '../utils/json'
+import JsonImportDialog from '../components/common/JsonImportDialog'
+import { toast } from 'sonner'
 
 const MESSAGE_TYPES: MessageType[] = ['text', 'sticker', 'image', 'video', 'audio', 'location', 'imagemap', 'template', 'flex', 'coupon']
 const MAX_MESSAGES = 5
+
+function isLineMessage(value: unknown): value is LineMessage {
+  return typeof value === 'object' && value !== null && 'type' in value && typeof value.type === 'string'
+}
+
+function validateMessages(value: unknown): LineMessage[] {
+  if (Array.isArray(value) && value.length >= 1 && value.length <= MAX_MESSAGES && value.every(isLineMessage)) return value
+  if (isLineMessage(value)) return [value]
+  throw new Error('メッセージ配列、またはtypeを持つメッセージオブジェクトを指定してください')
+}
 
 export default function MessageEditorPage() {
   const [messages, setMessages] = useLocalStorage<LineMessage[]>('line-msg-editor-v2', [defaultMessage('text')])
   const [activeIndex, setActiveIndex] = useState(0)
   const [showAddMenu, setShowAddMenu] = useState(false)
+  const [showImportDialog, setShowImportDialog] = useState(false)
   const addBtnRef = useRef<HTMLButtonElement>(null)
   const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
 
@@ -82,23 +97,6 @@ export default function MessageEditorPage() {
     setActiveIndex(swapIdx)
   }, [messages.length, setMessages])
 
-  const handleJsonChange = (json: string) => {
-    try {
-      const parsed = JSON.parse(json)
-      if (Array.isArray(parsed)) {
-        if (parsed.length >= 1 && parsed.length <= MAX_MESSAGES) {
-          setMessages(parsed as LineMessage[])
-          if (activeIndex >= parsed.length) setActiveIndex(parsed.length - 1)
-        }
-      } else if (parsed && typeof parsed === 'object' && parsed.type) {
-        setMessages([parsed as LineMessage])
-        setActiveIndex(0)
-      }
-    } catch {
-      // invalid JSON
-    }
-  }
-
   const jsonOutput = JSON.stringify(
     messages.length === 1 ? messages[0] : messages,
     null, 2
@@ -134,6 +132,10 @@ export default function MessageEditorPage() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-3">
+        <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#06C755]">Message editor</p><p className="text-sm font-semibold text-slate-800">LINEメッセージを作成</p></div>
+        <div className="flex items-center gap-2"><Button type="button" size="sm" variant="outline" onClick={async () => { await navigator.clipboard.writeText(jsonOutput); toast.success('JSONをコピーしました') }}><Copy className="mr-1.5 h-3.5 w-3.5" /> コピー</Button><Button type="button" size="sm" variant="outline" onClick={() => downloadJson('line-messages.json', JSON.parse(jsonOutput))}><Download className="mr-1.5 h-3.5 w-3.5" /> JSONダウンロード</Button><Button type="button" size="sm" variant="outline" onClick={() => setShowImportDialog(true)}><Upload className="mr-1.5 h-3.5 w-3.5" /> インポート</Button></div>
+      </div>
       {/* Message Tabs */}
       <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-1 overflow-x-auto flex-shrink-0">
         {messages.map((msg, i) => (
@@ -281,12 +283,9 @@ export default function MessageEditorPage() {
             </div>
           </div>
 
-          {/* JSON Panel */}
-          <div className="h-[300px] border-t border-gray-200 flex-shrink-0">
-            <JsonPanel json={jsonOutput} onJsonChange={handleJsonChange} />
-          </div>
         </div>
       </div>
+      <JsonImportDialog open={showImportDialog} onOpenChange={setShowImportDialog} title="メッセージJSONをインポート" validate={validateMessages} onImport={(value) => { setMessages(value); setActiveIndex(0) }} />
     </div>
   )
 }
