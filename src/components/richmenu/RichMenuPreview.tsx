@@ -1,13 +1,12 @@
 import type { RichMenuPayload } from '../../types/richmenu'
 
-const isTabLayout = (areas: RichMenuPayload['areas']) => {
-  const first = areas[0]?.bounds
-  const second = areas[1]?.bounds
-  return Boolean(first && second && first.x === 0 && first.y === 0 && second.y === first.height && first.width > second.width)
-}
+const getTabIndex = (areas: RichMenuPayload['areas']) => areas.findIndex(({ bounds }) => bounds.x === 0 && bounds.y === 0 && bounds.width > 0 && areas.some(({ bounds: other }) => other.y === bounds.height && other.y > 0))
+
+const isTabLayout = (areas: RichMenuPayload['areas']) => getTabIndex(areas) >= 0
 
 export default function RichMenuPreview({ menu, imageUrl }: { menu: RichMenuPayload; imageUrl: string }) {
   const { width, height } = menu.size
+  const tabIndex = getTabIndex(menu.areas)
   const tabLayout = isTabLayout(menu.areas)
   return (
     <div className="mx-auto w-full max-w-[330px] overflow-hidden rounded-[2rem] border-[8px] border-slate-800 bg-[#7494C0] shadow-xl">
@@ -17,8 +16,8 @@ export default function RichMenuPreview({ menu, imageUrl }: { menu: RichMenuPayl
           <div className="relative bg-slate-200" style={{ aspectRatio: `${width} / ${height}` }}>
             {imageUrl ? <img src={imageUrl} alt="Rich menu" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-xs text-slate-400">Menu image preview</div>}
             {menu.areas.map((area, index) => {
-              const isTab = tabLayout && index === 0
-              const label = tabLayout ? index + 1 : index + 1
+              const isTab = tabLayout && index === tabIndex
+              const label = index + 1
               return <div key={index} className={`absolute border-2 ${isTab ? 'border-amber-300 border-dashed bg-amber-400/40' : 'border-white/80 bg-[#06C755]/25'}`} style={{ left: `${area.bounds.x / width * 100}%`, top: `${area.bounds.y / height * 100}%`, width: `${area.bounds.width / width * 100}%`, height: `${area.bounds.height / height * 100}%` }}><span className={`m-1 inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white ${isTab ? 'bg-amber-600' : 'bg-slate-900/70'}`}>{label}</span>{isTab && <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded bg-slate-900/75 px-1.5 py-0.5 text-[8px] font-semibold text-white">タブ</span>}</div>
             })}
           </div>
