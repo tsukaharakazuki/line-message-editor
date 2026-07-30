@@ -1,12 +1,8 @@
-import { useState } from 'react'
-import { Check, Grid2X2 } from 'lucide-react'
-import type { RichMenuBounds } from '../../types/richmenu'
-import { RICH_MENU_LAYOUTS } from '../../data/richMenuLayouts'
-import { Button } from '../ui/Button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/Dialog'
+import { Check } from "lucide-react"
+import type { RichMenuBounds } from "../../types/richmenu"
+import { RICH_MENU_LAYOUTS } from "../../data/richMenuLayouts"
 
-export default function LayoutPickerDialog({ width, height, onSelect }: { width: number; height: number; onSelect: (areas: RichMenuBounds[]) => void }) {
-  const [open, setOpen] = useState(false)
-  const choose = (id: string) => { const preset = RICH_MENU_LAYOUTS.find((item) => item.id === id); if (!preset) return; onSelect(preset.getAreas(width, height)); setOpen(false) }
-  return <Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button type="button" variant="outline"><Grid2X2 className="mr-2 h-4 w-4" /> レイアウトを選択</Button></DialogTrigger><DialogContent className="max-w-2xl"><DialogHeader><DialogTitle>レイアウトを選択</DialogTitle></DialogHeader><div className="grid grid-cols-4 gap-3">{RICH_MENU_LAYOUTS.map((preset) => <button key={preset.id} type="button" onClick={() => choose(preset.id)} className="group rounded-xl border border-slate-200 p-3 text-left hover:border-[#06C755] hover:bg-emerald-50"><div className="mb-2 flex aspect-[5/3] items-center justify-center rounded-lg bg-slate-100"><Check className="h-5 w-5 text-slate-300 group-hover:text-[#06C755]" /></div><p className="text-xs font-medium">{preset.label}</p></button>)}</div></DialogContent></Dialog>
+interface Props { width: number; height: number; selectedId?: string; onSelect: (areas: RichMenuBounds[], id: string) => void }
+export default function LayoutPickerDialog({ width, height, selectedId, onSelect }: Props) {
+  return <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">{RICH_MENU_LAYOUTS.map((preset) => { const areas = preset.getAreas(width, height); return <button key={preset.id} type="button" onClick={() => onSelect(areas, preset.id)} className={`group rounded-xl border p-3 text-left transition ${selectedId === preset.id ? "border-[#06C755] bg-emerald-50 ring-2 ring-emerald-100" : "border-slate-200 bg-white hover:border-[#06C755] hover:bg-emerald-50/50"}`}><div className="relative mb-3 aspect-[5/3] overflow-hidden rounded-lg border border-slate-200 bg-slate-100 p-0.5"><div className="relative h-full w-full overflow-hidden rounded-md bg-slate-200">{areas.map((area, index) => <div key={index} className="absolute border border-white bg-[#06C755]/75 transition group-hover:bg-[#06C755]/90" style={{ left: `${area.x / width * 100}%`, top: `${area.y / height * 100}%`, width: `${area.width / width * 100}%`, height: `${area.height / height * 100}%` }}><span className="flex h-full items-center justify-center text-[9px] font-bold text-white/90">{index + 1}</span></div>)}</div>{selectedId === preset.id && <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#06C755] shadow"><Check className="h-3.5 w-3.5" /></span>}</div><p className="text-xs font-semibold text-slate-700">{preset.label}</p><p className="mt-0.5 text-[10px] text-slate-400">{areas.length}エリア</p></button> })}</div>
 }
