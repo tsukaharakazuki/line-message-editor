@@ -32,8 +32,13 @@ jobs:
 
       - run: npm run build
 
-      # GitHub Pages serves this SPA shell for BrowserRouter deep links.
-      - run: cp dist/index.html dist/404.html
+      # Publish entrypoints for the static routes used by BrowserRouter.
+      - run: |
+          cp dist/index.html dist/404.html
+          mkdir -p dist/messages dist/rich-menus dist/rich-menus/new
+          cp dist/index.html dist/messages/index.html
+          cp dist/index.html dist/rich-menus/index.html
+          cp dist/index.html dist/rich-menus/new/index.html
 
       - uses: actions/configure-pages@v5
 
